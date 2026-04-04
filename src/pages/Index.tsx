@@ -4,6 +4,9 @@ import { Play, ArrowRight, Shield, Zap, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import CountdownTimer from "@/components/CountdownTimer";
+import Features from "@/components/Features";
+import Testimonials from "@/components/Testimonials";
 
 const JVZOO_AFFILIATE_URL = "https://www.jvzoo.com"; // Replace with your affiliate link
 
@@ -23,8 +26,6 @@ const Index = () => {
       return;
     }
     setIsSubmitting(true);
-
-    // Simulate saving lead then redirect
     setTimeout(() => {
       window.open(JVZOO_AFFILIATE_URL, "_blank");
       setIsSubmitting(false);
@@ -34,9 +35,16 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* Urgency Bar */}
+      <div className="bg-primary/10 border-b border-primary/20 py-3">
+        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6">
+          <span className="text-sm font-semibold text-primary">⚡ Special Launch Price Ends In:</span>
+          <CountdownTimer />
+        </div>
+      </div>
+
       {/* Hero */}
       <div className="relative overflow-hidden">
-        {/* Gradient glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/20 rounded-full blur-[120px] pointer-events-none" />
 
         <div className="relative max-w-5xl mx-auto px-4 pt-16 pb-12">
@@ -76,7 +84,7 @@ const Index = () => {
 
           {/* Video + Form Grid */}
           <div className="grid md:grid-cols-5 gap-8 items-start">
-            {/* Video - takes 3 cols */}
+            {/* Video */}
             <motion.div
               initial={{ opacity: 0, x: -30 }}
               animate={{ opacity: 1, x: 0 }}
@@ -84,7 +92,6 @@ const Index = () => {
               className="md:col-span-3"
             >
               <div className="relative rounded-xl overflow-hidden border border-border bg-card aspect-video flex items-center justify-center group cursor-pointer">
-                {/* Placeholder — replace src with your video embed */}
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent" />
                 <div className="relative flex flex-col items-center gap-3">
                   <div className="w-20 h-20 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -95,7 +102,7 @@ const Index = () => {
               </div>
             </motion.div>
 
-            {/* Form - takes 2 cols */}
+            {/* Form */}
             <motion.div
               initial={{ opacity: 0, x: 30 }}
               animate={{ opacity: 1, x: 0 }}
@@ -109,24 +116,20 @@ const Index = () => {
                 </p>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <Input
-                      type="text"
-                      placeholder="Your Name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="bg-secondary border-border h-12 text-foreground placeholder:text-muted-foreground"
-                    />
-                  </div>
-                  <div>
-                    <Input
-                      type="email"
-                      placeholder="Your Best Email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="bg-secondary border-border h-12 text-foreground placeholder:text-muted-foreground"
-                    />
-                  </div>
+                  <Input
+                    type="text"
+                    placeholder="Your Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="bg-secondary border-border h-12 text-foreground placeholder:text-muted-foreground"
+                  />
+                  <Input
+                    type="email"
+                    placeholder="Your Best Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="bg-secondary border-border h-12 text-foreground placeholder:text-muted-foreground"
+                  />
                   <Button
                     type="submit"
                     disabled={isSubmitting}
@@ -170,6 +173,41 @@ const Index = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* Features */}
+      <Features />
+
+      {/* Testimonials */}
+      <Testimonials />
+
+      {/* Final CTA */}
+      <section className="max-w-3xl mx-auto px-4 py-16 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          <h2 className="text-2xl md:text-4xl font-extrabold mb-4">
+            Ready To Start <span className="text-primary">Profiting</span>?
+          </h2>
+          <p className="text-muted-foreground mb-6 max-w-lg mx-auto">
+            Don't miss this limited-time launch price. Join thousands of smart marketers who are already seeing results.
+          </p>
+          <Button
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="h-12 px-8 bg-primary text-primary-foreground font-bold text-base hover:brightness-110 transition-all"
+          >
+            <span className="flex items-center gap-2">
+              Grab Your Copy Now <ArrowRight className="w-5 h-5" />
+            </span>
+          </Button>
+        </motion.div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-border py-6 text-center text-muted-foreground text-xs">
+        © {new Date().getFullYear()} All Rights Reserved. | This site is not a part of JVZoo.
+      </footer>
     </div>
   );
 };
