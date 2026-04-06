@@ -10,7 +10,7 @@ import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
 
-const App = () => ( 
+const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <SiteSettingsProvider>
