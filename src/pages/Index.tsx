@@ -8,8 +8,36 @@ import CountdownTimer from "@/components/CountdownTimer";
 import Features from "@/components/Features";
 import Testimonials from "@/components/Testimonials";
 import { useSiteSettings } from "@/contexts/SiteSettingsContext";
+import { getApiBase } from "@/lib/api";
 
 const JVZOO_AFFILIATE_URL = "https://www.jvzoo.com";
+
+async function registerSubscriber(fullName: string, email: string): Promise<void> {
+  const res = await fetch(`${getApiBase()}/api/subscribers`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fullName, email }),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    message?: string | string[];
+    code?: string;
+  };
+  if (res.status === 409) {
+    throw new Error(
+      typeof data.message === "string"
+        ? data.message
+        : "You’re already registered with this email.",
+    );
+  }
+  if (!res.ok) {
+    const msg = Array.isArray(data.message)
+      ? data.message.join(", ")
+      : typeof data.message === "string"
+        ? data.message
+        : "Something went wrong. Please try again.";
+    throw new Error(msg);
+  }
+}
 
 const Index = () => {
   const [name, setName] = useState("");
@@ -18,7 +46,7 @@ const Index = () => {
   const formRef = useRef<HTMLDivElement>(null);
   const { settings } = useSiteSettings();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) {
       toast.error("Please fill in all fields");
@@ -29,11 +57,16 @@ const Index = () => {
       return;
     }
     setIsSubmitting(true);
-    setTimeout(() => {
+    try {
+      await registerSubscriber(name.trim(), email.trim());
       window.open(JVZOO_AFFILIATE_URL, "_blank");
-      setIsSubmitting(false);
       toast.success("Redirecting you now...");
-    }, 800);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Request failed";
+      toast.error(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const scrollToForm = () => {

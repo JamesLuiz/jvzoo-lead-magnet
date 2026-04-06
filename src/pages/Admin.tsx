@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useSiteSettings, FeatureCard, TestimonialCard } from "@/contexts/SiteSettingsContext";
+import { useState, useEffect, useRef } from "react";
+import { useSiteSettings, FeatureCard, TestimonialCard, defaultSettings } from "@/contexts/SiteSettingsContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -65,9 +65,19 @@ const ColorInput = ({ label, value, onChange }: { label: string; value: string; 
 };
 
 const Admin = () => {
-  const { settings, updateSettings, resetSettings } = useSiteSettings();
+  const { settings, isLoading, saveSettings, resetSettings } = useSiteSettings();
   const navigate = useNavigate();
   const [localSettings, setLocalSettings] = useState(settings);
+  const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const prevLoading = useRef(true);
+
+  useEffect(() => {
+    if (prevLoading.current && !isLoading) {
+      setLocalSettings(settings);
+      prevLoading.current = false;
+    }
+  }, [isLoading, settings]);
 
   const update = <K extends keyof typeof localSettings>(key: K, val: typeof localSettings[K]) => {
     setLocalSettings((p) => ({ ...p, [key]: val }));
@@ -101,16 +111,37 @@ const Admin = () => {
     update("testimonials", localSettings.testimonials.filter((_, idx) => idx !== i));
   };
 
-  const handleSave = () => {
-    updateSettings(localSettings);
-    toast.success("Settings saved!");
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await saveSettings(localSettings);
+      toast.success(
+        import.meta.env.VITE_ADMIN_API_KEY?.trim()
+          ? "Saved to server"
+          : "Saved locally only — set VITE_ADMIN_API_KEY to persist on the server.",
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleReset = () => {
-    resetSettings();
-    setLocalSettings(settings);
-    toast.success("Settings reset to defaults");
-    window.location.reload();
+  const handleReset = async () => {
+    setResetting(true);
+    try {
+      await resetSettings();
+      setLocalSettings(defaultSettings);
+      toast.success(
+        import.meta.env.VITE_ADMIN_API_KEY?.trim()
+          ? "Reset to defaults on the server"
+          : "Reset locally — server unchanged without VITE_ADMIN_API_KEY.",
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Reset failed");
+    } finally {
+      setResetting(false);
+    }
   };
 
   return (
@@ -125,11 +156,11 @@ const Admin = () => {
             <h1 className="text-2xl font-extrabold">Admin Panel</h1>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleReset} className="gap-2">
+            <Button variant="outline" onClick={handleReset} disabled={resetting || isLoading} className="gap-2">
               <RotateCcw className="w-4 h-4" /> Reset
             </Button>
-            <Button onClick={handleSave} className="bg-primary text-primary-foreground font-bold">
-              Save Changes
+            <Button onClick={handleSave} disabled={saving || isLoading} className="bg-primary text-primary-foreground font-bold">
+              {saving ? "Saving…" : "Save Changes"}
             </Button>
           </div>
         </div>
@@ -313,11 +344,11 @@ const Admin = () => {
 
         {/* Bottom Save */}
         <div className="mt-8 flex justify-end gap-2">
-          <Button variant="outline" onClick={handleReset} className="gap-2">
+          <Button variant="outline" onClick={handleReset} disabled={resetting || isLoading} className="gap-2">
             <RotateCcw className="w-4 h-4" /> Reset All
           </Button>
-          <Button onClick={handleSave} className="bg-primary text-primary-foreground font-bold px-8">
-            Save Changes
+          <Button onClick={handleSave} disabled={saving || isLoading} className="bg-primary text-primary-foreground font-bold px-8">
+            {saving ? "Saving…" : "Save Changes"}
           </Button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { getApiBase } from "@/lib/api";
 
 export interface FeatureCard {
   title: string;
@@ -31,7 +32,7 @@ export interface SiteSettings {
   ctaSubheadline: string;
 }
 
-const defaultSettings: SiteSettings = {
+export const defaultSettings: SiteSettings = {
   headline: "Unlock The #1 Software That Prints Profits On Autopilot",
   subheadline: "Watch the demo below to see how thousands of marketers are scaling their income with this breakthrough tool.",
   urgencyText: "⚡ Special Launch Price Ends In:",
@@ -63,10 +64,33 @@ const defaultSettings: SiteSettings = {
 
 const STORAGE_KEY = "site_settings";
 
+function applyServerPayload(data: unknown): SiteSettings {
+  if (!data || typeof data !== "object") return { ...defaultSettings };
+  const o = data as Partial<SiteSettings>;
+  return {
+    ...defaultSettings,
+    ...o,
+    features: Array.isArray(o.features) ? (o.features as FeatureCard[]) : defaultSettings.features,
+    testimonials: Array.isArray(o.testimonials) ? (o.testimonials as TestimonialCard[]) : defaultSettings.testimonials,
+  };
+}
+
+function loadFromLocalStorage(): SiteSettings | null {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return null;
+    return applyServerPayload(JSON.parse(saved));
+  } catch {
+    return null;
+  }
+}
+
 interface SiteSettingsContextType {
   settings: SiteSettings;
+  isLoading: boolean;
   updateSettings: (s: Partial<SiteSettings>) => void;
-  resetSettings: () => void;
+  saveSettings: (full: SiteSettings) => Promise<void>;
+  resetSettings: () => Promise<void>;
 }
 
 const SiteSettingsContext = createContext<SiteSettingsContextType | null>(null);
@@ -78,18 +102,48 @@ export const useSiteSettings = () => {
 };
 
 export const SiteSettingsProvider = ({ children }: { children: ReactNode }) => {
-  const [settings, setSettings] = useState<SiteSettings>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return { ...defaultSettings, ...JSON.parse(saved) };
-    } catch {}
-    return defaultSettings;
-  });
+  const [settings, setSettings] = useState<SiteSettings>(defaultSettings);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${getApiBase()}/api/site-settings`);
+        if (!cancelled && res.ok) {
+          const data = await res.json();
+          const next = applyServerPayload(data);
+          setSettings(next);
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          } catch {
+            /* ignore */
+          }
+        } else if (!cancelled) {
+          const local = loadFromLocalStorage();
+          if (local) setSettings(local);
+        }
+      } catch {
+        if (!cancelled) {
+          const local = loadFromLocalStorage();
+          if (local) setSettings(local);
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-    // Apply color overrides as CSS variables
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    } catch {
+      /* ignore */
+    }
+
     const root = document.documentElement;
     root.style.setProperty("--primary", settings.primaryColor);
     root.style.setProperty("--accent", settings.primaryColor);
@@ -104,16 +158,55 @@ export const SiteSettingsProvider = ({ children }: { children: ReactNode }) => {
     setSettings((prev) => ({ ...prev, ...partial }));
   };
 
-  const resetSettings = () => {
-    setSettings(defaultSettings);
-    localStorage.removeItem(STORAGE_KEY);
+  const saveSettings = async (full: SiteSettings) => {
+    const key = import.meta.env.VITE_ADMIN_API_KEY?.trim();
+    if (key) {
+      const res = await fetch(`${getApiBase()}/api/site-settings`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-key": key,
+        },
+        body: JSON.stringify(full),
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        message?: string | string[];
+      } & Record<string, unknown>;
+      if (!res.ok) {
+        const msg = Array.isArray(body.message) ? body.message.join(", ") : body.message;
+        throw new Error(typeof msg === "string" ? msg : "Could not save to server.");
+      }
+      setSettings(applyServerPayload(body));
+    } else {
+      setSettings(full);
+    }
+  };
+
+  const resetSettings = async () => {
+    const key = import.meta.env.VITE_ADMIN_API_KEY?.trim();
+    if (key) {
+      const res = await fetch(`${getApiBase()}/api/site-settings`, {
+        method: "DELETE",
+        headers: { "x-admin-key": key },
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        message?: string | string[];
+      } & Record<string, unknown>;
+      if (!res.ok) {
+        const msg = Array.isArray(body.message) ? body.message.join(", ") : body.message;
+        throw new Error(typeof msg === "string" ? msg : "Could not reset on server.");
+      }
+      setSettings(applyServerPayload(body));
+    } else {
+      setSettings({ ...defaultSettings });
+    }
   };
 
   return (
-    <SiteSettingsContext.Provider value={{ settings, updateSettings, resetSettings }}>
+    <SiteSettingsContext.Provider
+      value={{ settings, isLoading, updateSettings, saveSettings, resetSettings }}
+    >
       {children}
     </SiteSettingsContext.Provider>
   );
 };
-
-export { defaultSettings };
